@@ -54,8 +54,6 @@ int main(int argc, char *argv[])
 	} 
 	else{
 
-		while(1)
-	    {
 	        connfd = accept(listenfd, (struct sockaddr*)NULL, NULL); 
 
 	        ticks = time(NULL);
@@ -64,7 +62,7 @@ int main(int argc, char *argv[])
 	        printf("%s\n", reciveBuff);
 	        close(connfd);
 	        sleep(1);
-	    }
+	    
 
 	}
 }

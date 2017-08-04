@@ -11,7 +11,7 @@
 
 int main(int argc, char *argv[])
 {
-    int sockfd = 0, n = 0;
+    int sockfd = 0, n = 0, k = 0;
     char recvBuff[1024];
     char sendBuff[1024] = "Hello server!";
     struct sockaddr_in serv_addr; 
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0)
     {
         printf("\n inet_pton error occured\n");
-        return 1;
+               return 1;
     } 
 
     if( connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
        return 1;
     } 
 
-    write(sockfd, sendBuff, strlen(sendBuff)); // HZ lets try
+    send(sockfd, (char *)sendBuff, strlen(sendBuff)); // HZ lets try
 
     while ( (n = read(sockfd, recvBuff, sizeof(recvBuff)-1)) > 0)
     {
