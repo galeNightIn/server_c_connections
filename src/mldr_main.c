@@ -1,79 +1,71 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <time.h> 
-#include <unistd.h>
-
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
+#include <errno.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <sys/socket.h> 
+#include <netinet/in.h> 
+#include <netdb.h> 
+#include <arpa/inet.h> 
+#include <sys/wait.h> 
 #include <signal.h>
-#include <sys/wait.h>
-#include <netdb.h>
 
-#define PORT 5000
+#include "mldr_send_recv.h"
+#include "mldr_connections.h"
+
+#define PORT "5000"
+
+#define PORT_NEW "4500"
 
 #define BACKLOG 2
 
+#define MAXDATASIZE 100
+
+
 int main(int argc, char const *argv[])
-{
-	int sockfd = 0, //listened socket fd 
-		newfd = 0,	//new socket fd
-		rv = 0,
-		reuse_addr = 1;
+{	
+	int sock_srv_fd 	= 0, 
+		new_serv_fd 	= 0,
+		numbytes 		= 0;
 
-	struct addrinfo serv_addr, *servinfo, *p;
-	struct sockaddr_storage clnt_addr;
-	socketlen_t sin_size;
+	struct sockaddr_storage 	clnt_addr;
+	socklen_t 					sin_size; 
 
-	memset(&serv_addr, '0', sizeof(serv_addr));
-	serv_addr.ai_family = AF_INET;
-	serv_addr.ai_socktype = SOCK_STREAM;
-	serv_addr.ai_flags = AI_PASSIVE;
+	char s[INET6_ADDRSTRLEN];
+	char cmd[MAXDATASIZE] = " ";
 
-	// customize servinfo
-	if(rv = getaddrinfo(NULL, PORT, &serv_addr, &servinfo) != 0){
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		exit(EXIT_FAILURE);
-	}
+	sock_srv_fd = mldr_connect_to_client(AF_INET, SOCK_STREAM, AI_PASSIVE, PORT, BACKLOG);
 
-	for(p = servinfo; p != NULL; p = p->ai_next){
+ 	printf("server: waiting for connections...\n");
+
+ 	while(1){
+
+ 		sin_size = sizeof clnt_addr; 
+		new_serv_fd = accept(sock_srv_fd, (struct sockaddr *)&clnt_addr, &sin_size); 
 		
-		if(sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol) == -1){
-			fprintf(stderr, "socket: %s\n", strerror(errno));
-			continue;
+		if (new_serv_fd == -1) { 
+			perror("accept"); 
+			continue; 
+   		}
+
+   		inet_ntop(clnt_addr.ss_family, get_in_addr((struct sockaddr *)&clnt_addr), s, sizeof s);
+
+        printf("server: got connection from %s\n", s);	
+
+ 		if (!fork()) {   
+    	    close(sock_srv_fd);  
+    	    while(strcmp(cmd, "exit") != 0){
+    	    	mldr_recv(new_serv_fd, cmd, MAXDATASIZE, 0, &numbytes);
+    	    	printf("SERVER: recived %s message\n", cmd);
+    	    }
+			close(new_serv_fd); 
+			exit(0); 
 		}
-	
-
-		//reuse port
-		if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(int)) == -1){
- 			perror("setsockopt");
- 			exit(EXIT_FAILURE);
- 		}	
-
- 		if(bind(sockfd, p->ai_addr, p->ai_addrlen) == -1){
- 			close(sockfd);
- 			perror("server: bind");
- 			continue;
- 		}
-
- 		break;
- 	}
- 	
- 	if(p == NULL){
- 		fprintf(stderr, "S: error: could not bind to any address\n");
-        return EXIT_FAILURE;
+			
+		close(new_serv_fd);   
  	}
 
- 	freeaddrinfo(servinfo);
-
- 	if(listen(sockfd, BACKLOG) == -1){
- 		perror("listen");
- 		exit(EXIT_FAILURE)
- 	}
-
-
+		
 	return 0;
 }
